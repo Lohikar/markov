@@ -32,8 +32,8 @@ extern crate serde_derive;
 extern crate serde_yaml;
 
 use std::borrow::ToOwned;
-use std::collections::HashMap;
-use std::collections::hash_map::Entry::{Occupied, Vacant};
+use std::collections::BTreeMap;
+use std::collections::btree_map::Entry::{Occupied, Vacant};
 use std::fs::File;
 use std::hash::Hash;
 use std::io::{BufReader, Result};
@@ -56,8 +56,8 @@ use serde::de::DeserializeOwned;
 use serde_yaml as yaml;
 
 /// The definition of all types that can be used in a `Chain`.
-pub trait Chainable: Eq + Hash + Clone {}
-impl<T> Chainable for T where T: Eq + Hash + Clone {}
+pub trait Chainable: Eq + Hash + Clone + Ord {}
+impl<T> Chainable for T where T: Eq + Hash + Clone + Ord {}
 
 type Token<T> = Option<T>;
 
@@ -65,7 +65,7 @@ type Token<T> = Option<T>;
 /// In particular, elements of the chain must be `Eq`, `Hash`, and `Clone`.
 #[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub struct Chain<T> where T: Chainable {
-    map: HashMap<Vec<Token<T>>, HashMap<Token<T>, usize>>,
+    map: BTreeMap<Vec<Token<T>>, BTreeMap<Token<T>, usize>>,
     order: usize,
 }
 
@@ -83,8 +83,8 @@ impl<T> Chain<T> where T: Chainable {
         assert!(order != 0);
         Chain {
             map: {
-                let mut map = HashMap::new();
-                map.insert(vec!(None; order), HashMap::new());
+                let mut map = BTreeMap::new();
+                map.insert(vec!(None; order), BTreeMap::new());
                 map
             },
             order: order,
@@ -108,7 +108,7 @@ impl<T> Chain<T> where T: Chainable {
         }));
         toks.push(None);
         for p in toks.windows(self.order + 1) {
-            self.map.entry(p[0..self.order].to_vec()).or_insert_with(HashMap::new);
+            self.map.entry(p[0..self.order].to_vec()).or_insert_with(BTreeMap::new);
             self.map.get_mut(&p[0..self.order].to_vec()).unwrap().add(p[self.order].clone());
         }
         self
@@ -179,7 +179,7 @@ impl<T> Chain<T> where T: Chainable {
             states
         }).unique()
             .map(|state| (state.clone(), graph.add_node(state)))
-            .collect::<HashMap<_, _>>();
+            .collect::<BTreeMap<_, _>>();
 
         // Create all edges, and add them to the graph.
         self.map.iter().flat_map(|(state, nexts)| {
@@ -336,7 +336,7 @@ trait States<T: PartialEq> {
     fn next(&self) -> Token<T>;
 }
 
-impl<T> States<T> for HashMap<Token<T>, usize> where T: Chainable {
+impl<T> States<T> for BTreeMap<Token<T>, usize> where T: Chainable {
     fn add(&mut self, token: Token<T>) {
         match self.entry(token) {
             Occupied(mut e) => *e.get_mut() += 1,
