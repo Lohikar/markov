@@ -135,9 +135,10 @@ impl<T> Chain<T> where T: Chainable {
     /// of possible states from a given state. This returns an empty vector if the token is not
     /// found.
     pub fn generate_from_token(&self, token: T) -> Vec<T> {
-        if !self.map.contains_key(&vec!(Some(token.clone()); self.order)) { return Vec::new() }
-        let mut ret = vec![token.clone()];
-        let mut curs = vec!(Some(token.clone()); self.order);
+        let mut curs = vec![None; self.order - 1];
+        curs.push(Some(token.clone()));
+        if !self.map.contains_key(&curs) { return Vec::new() }
+        let mut ret = vec![token];
         loop {
             let next = self.map[&curs].next();
             curs = curs[1..self.order].to_vec();
